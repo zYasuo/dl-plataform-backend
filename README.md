@@ -53,14 +53,4 @@ src/
 └── main.ts            # Inicialização da app
 ```
 
-## 🎯 Próximos passos
-
-- [ ] Adicionar mais endpoints
-- [ ] Conectar com banco de dados
-- [ ] Implementar validação
-- [ ] Adicionar autenticação
-- [ ] Criar mais módulos
-
----
-
 💡 **Dica**: Use `npm run start:dev` para recarregar automaticamente quando fizer mudanças no código!
