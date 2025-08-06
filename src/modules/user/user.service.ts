@@ -1,12 +1,16 @@
 import * as argon2 from "argon2";
 import { IUserService } from "./interfaces/user-service.interface";
 import { CreateUserDTO } from "./dto/user-create.dto";
+import type { IEmailService } from "../email/interface/email-service.interface";
 import { PrismaClient, User } from "@prisma/client";
 import { IUserResonse, IUser } from "./interfaces/user-response.interface";
-import { Inject, Injectable, BadRequestException, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, BadRequestException, NotFoundException, InternalServerErrorException } from "@nestjs/common";
 @Injectable()
 export class UserService implements IUserService {
-    constructor(@Inject("PRISMA_CLIENT") private prismaDB: PrismaClient) {}
+    constructor(
+        @Inject("PRISMA_CLIENT") private prismaDB: PrismaClient,
+        @Inject("IEmailService") private emailService: IEmailService
+    ) {}
 
     async create(data: CreateUserDTO): Promise<IUserResonse> {
         const emailExists = await this.checkEmail(data.email);
@@ -23,10 +27,18 @@ export class UserService implements IUserService {
         };
 
         const createUser = await this.prismaDB.user.create({ data: newData });
+        if (!createUser) {
+            throw new InternalServerErrorException("Internal Error");
+        }
+
+        const { email, name } = createUser;
+
+        const emailResponse = await this.emailService.sendWelcomeEmail(email, name!);
+        console.log(emailResponse)
 
         const responseData: IUser = {
-            name: createUser.name,
-            email: createUser.email
+            name: name,
+            email: email
         };
         return {
             message: "User created sucess",
