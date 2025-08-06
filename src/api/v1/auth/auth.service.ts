@@ -1,11 +1,16 @@
 import { AuthDTO } from "./dto/auth.dto";
 import * as argon2 from "argon2";
 import { JwtService } from "@nestjs/jwt";
-import { UserService } from "src/user/user.service";
+import { UserService } from "../user/user.service";
 import { IAuthResponse } from "./dto/auth-response.interface";
-import { ICreateJWT, ICreateTokenDB } from "./jwt/dto/jwt-payload.interface";
+import { ICreateJWT, ICreateTokenDB } from "./jwt/jwt-payload.interface";
 import { PrismaClient, Token, User } from "@prisma/client";
 import { ForbiddenException, Inject, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
+
+export interface IAuthService {
+    login(data: AuthDTO): Promise<IAuthResponse>;
+    validateToken(token: string);
+}
 
 @Injectable()
 export class AuthService {
@@ -15,8 +20,8 @@ export class AuthService {
         private readonly userService: UserService
     ) {}
 
-    async createAccessToken(data: AuthDTO): Promise<IAuthResponse> {
-        const dataValidate = await this.validateUser(data);
+    async login(data: AuthDTO): Promise<IAuthResponse> {
+        const dataValidate = await this.validateLogin(data);
 
         const payloadToken: ICreateJWT = {
             name: dataValidate.name,
@@ -34,7 +39,7 @@ export class AuthService {
         return { access_token: generateToken };
     }
 
-    async validateUser(data: AuthDTO): Promise<User> {
+    private async validateLogin(data: AuthDTO): Promise<User> {
         const searchData = await this.userService.searchUserByEmail(data.email);
 
         if (!searchData) {
@@ -50,7 +55,7 @@ export class AuthService {
         return searchData;
     }
 
-    async createTokenDB(payload: ICreateTokenDB): Promise<Token> {
+    private async createTokenDB(payload: ICreateTokenDB): Promise<Token> {
         const tokenDB = await this.prismaDB.token.create({
             data: payload
         });
@@ -60,5 +65,11 @@ export class AuthService {
         }
 
         return tokenDB;
+    }
+
+    async validateToken(token: string) {
+        return this.jwtService.verify(token, {
+            secret: process.env.JWT_SECRET_KEY
+        });
     }
 }

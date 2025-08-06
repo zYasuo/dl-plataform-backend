@@ -1,11 +1,18 @@
 import * as argon2 from "argon2";
-import { IUserResonse } from "./dto/user-response.interface";
 import { CreateUserDTO } from "./dto/user-create.dto";
 import { PrismaClient, User } from "@prisma/client";
+import { IUserResonse, IUser } from "./dto/user-response.interface";
 import { Inject, Injectable, BadRequestException, NotFoundException } from "@nestjs/common";
 
+export interface IUserService {
+    create(data: CreateUserDTO): Promise<IUserResonse>;
+    checkEmail(email: string): Promise<boolean>;
+    profileUser(email: string): Promise<IUser | null>;
+    searchUserByEmail(email: string): Promise<User | null>;
+}
+
 @Injectable()
-export class UserService {
+export class UserService implements IUserService {
     constructor(@Inject("PRISMA_CLIENT") private prismaDB: PrismaClient) {}
 
     async create(data: CreateUserDTO): Promise<IUserResonse> {
@@ -45,6 +52,23 @@ export class UserService {
             timeCost: 3,
             parallelism: 1
         });
+    }
+
+    async profileUser(email: string): Promise<IUser | null> {
+        const user = await this.prismaDB.user.findUnique({
+            where: { email: email }
+        });
+
+        if (!user) {
+            throw new NotFoundException("User not found.");
+        }
+
+        const userResponse: IUser = {
+            email: user.email,
+            name: user.name
+        };
+
+        return userResponse;
     }
 
     async searchUserByEmail(email: string): Promise<User | null> {
