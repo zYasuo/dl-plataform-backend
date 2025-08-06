@@ -1,7 +1,7 @@
 import { JWTAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { CreateUserDTO } from "./dto/user-create.dto";
-import type { IUserService } from "./user.service";
-import { IUser, IUserResonse } from "./dto/user-response.interface";
+import type { IUserService } from "./interfaces/user-service.interface";
+import { IUser, IUserResonse } from "./interfaces/user-response.interface";
 import { Controller, Post, Body, UsePipes, ValidationPipe, Get, Query, UseGuards, Inject } from "@nestjs/common";
 
 @Controller("user")

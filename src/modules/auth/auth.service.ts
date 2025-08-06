@@ -1,19 +1,15 @@
 import { AuthDTO } from "./dto/auth.dto";
 import * as argon2 from "argon2";
 import { JwtService } from "@nestjs/jwt";
-import type { IUserService } from "../user/user.service";
-import { IAuthResponse } from "./dto/auth-response.interface";
-import { ICreateJWT, ICreateTokenDB } from "./jwt/dto/jwt-payload.interface";
+import type { IAuthService } from "./interface/auth-service.interface";
+import { IAuthResponse } from "./interface/auth-response.interface";
+import type { IUserService } from "../user/interfaces/user-service.interface";
+import { ICreateJWT, ICreateTokenDB } from "./interface/jwt-payload.interface";
 import { PrismaClient, Token, User } from "@prisma/client";
 import { ForbiddenException, Inject, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 
-export interface IAuthService {
-    login(data: AuthDTO): Promise<IAuthResponse>;
-    validateToken(token: string);
-}
-
 @Injectable()
-export class AuthService {
+export class AuthService implements IAuthService {
     constructor(
         @Inject("PRISMA_CLIENT") private prismaDB: PrismaClient,
         @Inject("IUserService") private readonly userService: IUserService,

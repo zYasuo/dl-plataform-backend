@@ -1,5 +1,5 @@
 import { AuthDTO } from "./dto/auth.dto";
-import type { IAuthService } from "./auth.service";
+import type { IAuthService } from "./interface/auth-service.interface";
 import { Post, Controller, Body, UsePipes, ValidationPipe, Inject } from "@nestjs/common";
 
 @Controller("auth")

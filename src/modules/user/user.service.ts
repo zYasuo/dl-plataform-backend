@@ -1,16 +1,9 @@
 import * as argon2 from "argon2";
+import { IUserService } from "./interfaces/user-service.interface";
 import { CreateUserDTO } from "./dto/user-create.dto";
 import { PrismaClient, User } from "@prisma/client";
-import { IUserResonse, IUser } from "./dto/user-response.interface";
+import { IUserResonse, IUser } from "./interfaces/user-response.interface";
 import { Inject, Injectable, BadRequestException, NotFoundException } from "@nestjs/common";
-
-export interface IUserService {
-    create(data: CreateUserDTO): Promise<IUserResonse>;
-    checkEmail(email: string): Promise<boolean>;
-    profileUser(email: string): Promise<IUser | null>;
-    searchUserByEmail(email: string): Promise<User | null>;
-}
-
 @Injectable()
 export class UserService implements IUserService {
     constructor(@Inject("PRISMA_CLIENT") private prismaDB: PrismaClient) {}
@@ -24,16 +17,20 @@ export class UserService implements IUserService {
 
         const hashedPassword = await this.hashPassword(data.password);
 
-        const newData = {
+        const newData: CreateUserDTO = {
             ...data,
             password: hashedPassword
-        } as CreateUserDTO;
+        };
 
         const createUser = await this.prismaDB.user.create({ data: newData });
 
+        const responseData: IUser = {
+            name: createUser.name,
+            email: createUser.email
+        };
         return {
             message: "User created sucess",
-            data: createUser
+            data: responseData
         };
     }
 
