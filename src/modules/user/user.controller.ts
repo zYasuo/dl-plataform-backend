@@ -1,4 +1,4 @@
-import { JWTAuthGuard } from "../auth/jwt/jwt-auth.guard";
+import { JWTAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { CreateUserDTO } from "./dto/user-create.dto";
 import type { IUserService } from "./user.service";
 import { IUser, IUserResonse } from "./dto/user-response.interface";

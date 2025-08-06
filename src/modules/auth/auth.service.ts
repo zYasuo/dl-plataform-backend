@@ -3,7 +3,7 @@ import * as argon2 from "argon2";
 import { JwtService } from "@nestjs/jwt";
 import { UserService } from "../user/user.service";
 import { IAuthResponse } from "./dto/auth-response.interface";
-import { ICreateJWT, ICreateTokenDB } from "./jwt/jwt-payload.interface";
+import { ICreateJWT, ICreateTokenDB } from "./jwt/dto/jwt-payload.interface";
 import { PrismaClient, Token, User } from "@prisma/client";
 import { ForbiddenException, Inject, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 
