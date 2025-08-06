@@ -1,6 +1,6 @@
-import type { IUserService } from "./user.service";
 import { JWTAuthGuard } from "../auth/jwt/jwt-auth.guard";
 import { CreateUserDTO } from "./dto/user-create.dto";
+import type { IUserService } from "./user.service";
 import { IUser, IUserResonse } from "./dto/user-response.interface";
 import { Controller, Post, Body, UsePipes, ValidationPipe, Get, Query, UseGuards, Inject } from "@nestjs/common";
 
