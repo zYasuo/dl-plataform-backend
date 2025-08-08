@@ -11,7 +11,7 @@ export class EmailService implements IEmailService {
         this.resend = new Resend(process.env.RESEND_API_KEY);
     }
 
-    async sendWelcomeEmail(to: string, name: string): Promise<IResponseResend> {
+    async sendWelcomeEmail(to: string, name: string, token: string): Promise<IResponseResend> {
         const response = await this.resend.emails.send({
             from: "onboarding@resend.dev",
             to,
@@ -19,6 +19,8 @@ export class EmailService implements IEmailService {
             html: `
         <h1>Olá, ${name}!</h1>
         <p>Bem-vindo à nossa plataforma!</p>
+        <p>Para verificar seu email, clique no link abaixo:</p>
+        <a href="${process.env.FRONTEND_URL}/verify-email?token=${token}">Verificar Email</a>
       `
         });
         console.log(response);

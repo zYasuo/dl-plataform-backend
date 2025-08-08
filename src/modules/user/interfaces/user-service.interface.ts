@@ -7,4 +7,5 @@ export interface IUserService {
     checkEmail(email: string): Promise<boolean>;
     profileUser(email: string): Promise<IUser | null>;
     searchUserByEmail(email: string): Promise<user | null>;
+    updateEmailVerification(email: string, verified: boolean): Promise<void>;
 }

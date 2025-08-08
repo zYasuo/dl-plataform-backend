@@ -1,8 +1,7 @@
+import { IUser } from "./interfaces/user-response.interface";
 import { JWTAuthGuard } from "../../common/guards/jwt-auth.guard";
-import { CreateUserDTO } from "./dto/user-create.dto";
 import type { IUserService } from "./interfaces/user-service.interface";
-import { IUser, IUserResonse } from "./interfaces/user-response.interface";
-import { Controller, Post, Body, UsePipes, ValidationPipe, Get, Query, UseGuards, Inject } from "@nestjs/common";
+import { Controller, UsePipes, ValidationPipe, Get, Query, UseGuards, Inject } from "@nestjs/common";
 
 @Controller("user")
 export class UserController {
@@ -10,12 +9,6 @@ export class UserController {
         @Inject("IUserService")
         private readonly userService: IUserService
     ) {}
-
-    @Post("/create")
-    @UsePipes(new ValidationPipe())
-    async create(@Body() data: CreateUserDTO): Promise<IUserResonse> {
-        return this.userService.create(data);
-    }
 
     @Get("/profile")
     @UseGuards(JWTAuthGuard)

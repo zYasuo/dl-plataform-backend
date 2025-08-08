@@ -1,4 +1,4 @@
-import { IsEmail, IsString, IsNotEmpty, MaxLength, MinLength } from "class-validator";
+import { IsEmail, IsString, IsNotEmpty, MaxLength, MinLength, IsOptional } from "class-validator";
 
 export class CreateUserDTO {
     @IsNotEmpty({ message: "Field is must contain value" })
@@ -16,4 +16,7 @@ export class CreateUserDTO {
     @MinLength(8)
     @MaxLength(24)
     password: string;
+
+    @IsOptional({ message: "Field is must contain value" })
+    email_verified: boolean;
 }

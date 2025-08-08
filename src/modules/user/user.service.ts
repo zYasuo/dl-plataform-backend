@@ -1,16 +1,12 @@
 import * as argon2 from "argon2";
 import { IUserService } from "./interfaces/user-service.interface";
 import { CreateUserDTO } from "./dto/user-create.dto";
-import type { IEmailService } from "../email/interface/email-service.interface";
 import { PrismaClient, user } from "@prisma/client";
 import { IUserResonse, IUser } from "./interfaces/user-response.interface";
 import { Inject, Injectable, BadRequestException, NotFoundException, InternalServerErrorException } from "@nestjs/common";
 @Injectable()
 export class UserService implements IUserService {
-    constructor(
-        @Inject("PRISMA_CLIENT") private prismaDB: PrismaClient,
-        @Inject("IEmailService") private emailService: IEmailService
-    ) {}
+    constructor(@Inject("PRISMA_CLIENT") private prismaDB: PrismaClient) {}
 
     async create(data: CreateUserDTO): Promise<IUserResonse> {
         const emailExists = await this.checkEmail(data.email);
@@ -21,27 +17,28 @@ export class UserService implements IUserService {
 
         const hashedPassword = await this.hashPassword(data.password);
 
-        const newData: CreateUserDTO = {
-            ...data,
-            password: hashedPassword
-        };
+        const { name, email } = data;
 
-        const createUser = await this.prismaDB.user.create({ data: newData });
+        const createUser = await this.prismaDB.user.create({
+            data: {
+                name,
+                email,
+                password: hashedPassword,
+                email_verified: false
+            }
+        });
+
         if (!createUser) {
             throw new InternalServerErrorException("Internal Error");
         }
 
-        const { email, name } = createUser;
-
-        const emailResponse = await this.emailService.sendWelcomeEmail(email, name!);
-        console.log(emailResponse);
-
         const responseData: IUser = {
-            name: name,
-            email: email
+            name: createUser.name,
+            email: createUser.email
         };
+
         return {
-            message: "User created sucess",
+            message: "User created successfully",
             data: responseData
         };
     }
@@ -50,7 +47,6 @@ export class UserService implements IUserService {
         const user = await this.prismaDB.user.findUnique({
             where: { email }
         });
-
         return !!user;
     }
 
@@ -69,26 +65,25 @@ export class UserService implements IUserService {
         });
 
         if (!user) {
-            throw new NotFoundException("User not found.");
+            return null;
         }
 
-        const userResponse: IUser = {
+        return {
             email: user.email,
             name: user.name
         };
-
-        return userResponse;
     }
 
     async searchUserByEmail(email: string): Promise<user | null> {
-        const user = await this.prismaDB.user.findUnique({
+        return await this.prismaDB.user.findUnique({
             where: { email: email }
         });
+    }
 
-        if (!user) {
-            throw new NotFoundException("User not found.");
-        }
-
-        return user;
+    async updateEmailVerification(email: string, verified: boolean): Promise<void> {
+        await this.prismaDB.user.update({
+            where: { email },
+            data: { email_verified: verified }
+        });
     }
 }

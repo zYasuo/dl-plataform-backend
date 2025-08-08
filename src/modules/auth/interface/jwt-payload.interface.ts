@@ -8,8 +8,8 @@ export interface ICreateJWT {
 export interface ICreateTokenDB {
     user_id: string;
     refresh_token: string;
+    expires_at: Date;
 }
-
 export interface ITokenValidationResult {
     valid: boolean;
     payload: ICreateJWT;
