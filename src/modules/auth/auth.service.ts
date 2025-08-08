@@ -1,11 +1,11 @@
 import { AuthDTO } from "./dto/auth.dto";
 import * as argon2 from "argon2";
 import { JwtService } from "@nestjs/jwt";
-import type { IAuthService } from "./interface/auth-service.interface";
 import { IAuthResponse } from "./interface/auth-response.interface";
+import type { IAuthService } from "./interface/auth-service.interface";
 import type { IUserService } from "../user/interfaces/user-service.interface";
-import { ICreateJWT, ICreateTokenDB } from "./interface/jwt-payload.interface";
-import { PrismaClient, Token, User } from "@prisma/client";
+import { PrismaClient, token, user } from "@prisma/client";
+import { ICreateJWT, ICreateTokenDB, ITokenValidationResult } from "./interface/jwt-payload.interface";
 import { ForbiddenException, Inject, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 
 @Injectable()
@@ -21,21 +21,23 @@ export class AuthService implements IAuthService {
 
         const payloadToken: ICreateJWT = {
             name: dataValidate.name,
-            email: dataValidate.email
+            email: dataValidate.email,
+            sub: dataValidate.id
         };
 
-        const generateToken = await this.jwtService.signAsync(payloadToken);
+        const generateToken = await this.jwtService.signAsync(payloadToken, {
+            expiresIn: "7d"
+        });
 
         await this.createTokenDB({
-            token: generateToken,
-            refreshToken: generateToken,
-            userId: dataValidate.id,
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            refresh_token: generateToken,
+            user_id: dataValidate.id
         });
+
         return { access_token: generateToken };
     }
 
-    private async validateLogin(data: AuthDTO): Promise<User> {
+    private async validateLogin(data: AuthDTO): Promise<user> {
         const searchData = await this.userService.searchUserByEmail(data.email);
 
         if (!searchData) {
@@ -51,7 +53,7 @@ export class AuthService implements IAuthService {
         return searchData;
     }
 
-    private async createTokenDB(payload: ICreateTokenDB): Promise<Token> {
+    private async createTokenDB(payload: ICreateTokenDB): Promise<token> {
         const tokenDB = await this.prismaDB.token.create({
             data: payload
         });
@@ -63,9 +65,37 @@ export class AuthService implements IAuthService {
         return tokenDB;
     }
 
-    async validateToken(token: string) {
-        return this.jwtService.verify(token, {
+    async validateToken(token: string): Promise<ITokenValidationResult> {
+        const decoded = this.jwtService.verify<ICreateJWT>(token, {
             secret: process.env.JWT_SECRET_KEY
+        });
+
+        const tokenInDB = await this.prismaDB.token.findFirst({
+            where: { refresh_token: token }
+        });
+
+        if (!tokenInDB) {
+            throw new UnauthorizedException("Token revoked or not found");
+        }
+
+        const user = await this.userService.searchUserByEmail(decoded.email);
+        if (!user) {
+            throw new UnauthorizedException("User not found");
+        }
+
+        return {
+            valid: true,
+            payload: decoded,
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email
+            }
+        };
+    }
+    async revokeToken(token: string): Promise<void> {
+        await this.prismaDB.token.deleteMany({
+            where: { refresh_token: token }
         });
     }
 }

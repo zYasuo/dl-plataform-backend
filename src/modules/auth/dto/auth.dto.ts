@@ -6,3 +6,9 @@ export class AuthDTO {
     email: string;
     password: string;
 }
+
+export class AuthHeader{
+    @IsNotEmpty({ message: "Field is must contain value" })
+    @IsString({ message: "Name is must be string" })
+    authorization: string;
+}

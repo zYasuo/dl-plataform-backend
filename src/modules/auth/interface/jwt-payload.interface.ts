@@ -1,12 +1,21 @@
 export interface ICreateJWT {
     name: string | null;
-    email: string
+    email: string;
+    sub: string;
+    iat?: number;
+    exp?: number;
 }
 export interface ICreateTokenDB {
-    token: string;
-    refreshToken: string;
-    userId: string;
-    expiresAt: Date;
+    user_id: string;
+    refresh_token: string;
 }
 
-
+export interface ITokenValidationResult {
+    valid: boolean;
+    payload: ICreateJWT;
+    user?: {
+        id: string;
+        name: string;
+        email: string;
+    };
+}

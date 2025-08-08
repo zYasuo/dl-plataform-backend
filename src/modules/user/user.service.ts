@@ -2,7 +2,7 @@ import * as argon2 from "argon2";
 import { IUserService } from "./interfaces/user-service.interface";
 import { CreateUserDTO } from "./dto/user-create.dto";
 import type { IEmailService } from "../email/interface/email-service.interface";
-import { PrismaClient, User } from "@prisma/client";
+import { PrismaClient, user } from "@prisma/client";
 import { IUserResonse, IUser } from "./interfaces/user-response.interface";
 import { Inject, Injectable, BadRequestException, NotFoundException, InternalServerErrorException } from "@nestjs/common";
 @Injectable()
@@ -34,7 +34,7 @@ export class UserService implements IUserService {
         const { email, name } = createUser;
 
         const emailResponse = await this.emailService.sendWelcomeEmail(email, name!);
-        console.log(emailResponse)
+        console.log(emailResponse);
 
         const responseData: IUser = {
             name: name,
@@ -80,7 +80,7 @@ export class UserService implements IUserService {
         return userResponse;
     }
 
-    async searchUserByEmail(email: string): Promise<User | null> {
+    async searchUserByEmail(email: string): Promise<user | null> {
         const user = await this.prismaDB.user.findUnique({
             where: { email: email }
         });
