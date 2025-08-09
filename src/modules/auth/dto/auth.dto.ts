@@ -18,3 +18,9 @@ export class VerifyEmailDTO {
     @IsString({ message: "Name is must be string" })
     token: string;
 }
+
+export class RefreshTokenDTO {
+    @IsNotEmpty({ message: "Field is must contain value" })
+    @IsString({ message: "Refresh token is must be string" })
+    refresh_token: string;
+}

@@ -6,8 +6,8 @@ import type { IAuthService } from "./interface/auth-service.interface";
 import type { IUserService } from "../user/interfaces/user-service.interface";
 import type { IEmailService } from "../email/interface/email-service.interface";
 import { PrismaClient, token, user } from "@prisma/client";
-import { AuthDTO, AuthHeaderDTO, VerifyEmailDTO } from "./dto/auth.dto";
 import { ICreateJWT, ICreateTokenDB, ITokenValidationResult } from "./interface/jwt-payload.interface";
+import { AuthDTO, AuthHeaderDTO, RefreshTokenDTO, VerifyEmailDTO } from "./dto/auth.dto";
 import { BadRequestException, Inject, Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException } from "@nestjs/common";
 
 @Injectable()
@@ -123,38 +123,161 @@ export class AuthService implements IAuthService {
 
     async login(data: AuthDTO): Promise<IAuthResponse> {
         const dataValidate = await this.validateLogin(data);
-        
+
         const payloadToken: ICreateJWT = {
             name: dataValidate.name,
             email: dataValidate.email,
             sub: dataValidate.id
         };
 
-        const expiresIn = "7d";
         const accessToken = await this.jwtService.signAsync(payloadToken, {
-            expiresIn
+            expiresIn: "15m"
         });
+
+        const refreshToken = await this.jwtService.signAsync(
+            {
+                sub: dataValidate.id,
+                type: "refresh",
+                jti: crypto.randomUUID()
+            },
+            {
+                expiresIn: "7d"
+            }
+        );
 
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 7);
 
+        await this.prismaDB.token.deleteMany({
+            where: { user_id: dataValidate.id }
+        });
+
         await this.createTokenDB({
-            refresh_token: accessToken,
+            refresh_token: refreshToken,
             user_id: dataValidate.id,
             expires_at: expirationDate
         });
 
         return {
             access_token: accessToken,
+            refresh_token: refreshToken,
             user: {
                 id: dataValidate.id,
                 name: dataValidate.name,
                 email: dataValidate.email,
                 image: dataValidate.image!
             },
-            expires_in: expiresIn,
+            expires_in: 900,
             token_type: "Bearer"
         };
+    }
+
+    async refreshAccessToken(refreshTokenDto: RefreshTokenDTO): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
+        try {
+            const decoded = this.jwtService.verify<{ sub: string; type: string; jti: string }>(refreshTokenDto.refresh_token);
+
+            if (decoded.type !== "refresh") {
+                throw new UnauthorizedException("Invalid refresh token type");
+            }
+
+            const tokenInDB = await this.prismaDB.token.findFirst({
+                where: {
+                    refresh_token: refreshTokenDto.refresh_token,
+                    expires_at: { gt: new Date() }
+                },
+                include: { user: true }
+            });
+
+            if (!tokenInDB) {
+                throw new UnauthorizedException("Refresh token expired or revoked");
+            }
+
+            const payloadToken: ICreateJWT = {
+                name: tokenInDB.user.name,
+                email: tokenInDB.user.email,
+                sub: tokenInDB.user.id
+            };
+
+            const newAccessToken = await this.jwtService.signAsync(payloadToken, {
+                expiresIn: "15m"
+            });
+
+            const newRefreshToken = await this.jwtService.signAsync(
+                {
+                    sub: tokenInDB.user.id,
+                    type: "refresh",
+                    jti: crypto.randomUUID()
+                },
+                { expiresIn: "7d" }
+            );
+
+            await this.prismaDB.token.update({
+                where: { id: tokenInDB.id },
+                data: {
+                    refresh_token: newRefreshToken,
+                    expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                    updated_at: new Date()
+                }
+            });
+
+            return {
+                access_token: newAccessToken,
+                refresh_token: newRefreshToken,
+                expires_in: 900
+            };
+        } catch (error) {
+            if (error.name === "JsonWebTokenError" || error.name === "TokenExpiredError") {
+                throw new UnauthorizedException("Invalid or expired refresh token");
+            }
+            throw error;
+        }
+    }
+
+    async validateToken(data: AuthHeaderDTO): Promise<ITokenValidationResult> {
+        try {
+            const decoded = this.jwtService.verify<ICreateJWT>(data.authorization);
+
+            return {
+                valid: true,
+                payload: decoded,
+                user: {
+                    id: decoded.sub,
+                    name: decoded.name!,
+                    email: decoded.email
+                }
+            };
+        } catch (error) {
+            if (error.name === "JsonWebTokenError" || error.name === "TokenExpiredError") {
+                throw new UnauthorizedException("Invalid or expired access token");
+            }
+            throw error;
+        }
+    }
+
+    async revokeToken(token: string): Promise<void> {
+        await this.prismaDB.token.deleteMany({
+            where: { refresh_token: token }
+        });
+    }
+
+    async logout(refreshToken: string): Promise<void> {
+        await this.prismaDB.token.deleteMany({
+            where: { refresh_token: refreshToken }
+        });
+    }
+
+    async logoutAllDevices(userId: string): Promise<void> {
+        await this.prismaDB.token.deleteMany({
+            where: { user_id: userId }
+        });
+    }
+
+    async cleanExpiredTokens(): Promise<void> {
+        await this.prismaDB.token.deleteMany({
+            where: {
+                expires_at: { lt: new Date() }
+            }
+        });
     }
 
     private async validateLogin(data: AuthDTO): Promise<user> {
@@ -184,61 +307,6 @@ export class AuthService implements IAuthService {
                 refresh_token: payload.refresh_token,
                 expires_at: payload.expires_at,
                 updated_at: new Date()
-            }
-        });
-    }
-
-    async validateToken(data: AuthHeaderDTO): Promise<ITokenValidationResult> {
-        try {
-            const decoded = this.jwtService.verify<ICreateJWT>(data.authorization, {
-                secret: process.env.JWT_SECRET_KEY
-            });
-
-            const tokenInDB = await this.prismaDB.token.findFirst({
-                where: {
-                    refresh_token: data.authorization,
-                    expires_at: {
-                        gt: new Date()
-                    }
-                },
-                include: {
-                    user: true
-                }
-            });
-
-            if (!tokenInDB) {
-                throw new UnauthorizedException("Token revoked, expired or not found");
-            }
-
-            return {
-                valid: true,
-                payload: decoded,
-                user: {
-                    id: tokenInDB.user.id,
-                    name: tokenInDB.user.name,
-                    email: tokenInDB.user.email
-                }
-            };
-        } catch (error) {
-            if (error.name === "JsonWebTokenError" || error.name === "TokenExpiredError") {
-                throw new UnauthorizedException("Invalid or expired token");
-            }
-            throw error;
-        }
-    }
-
-    async revokeToken(token: string): Promise<void> {
-        await this.prismaDB.token.deleteMany({
-            where: { refresh_token: token }
-        });
-    }
-
-    async cleanExpiredTokens(): Promise<void> {
-        await this.prismaDB.token.deleteMany({
-            where: {
-                expires_at: {
-                    lt: new Date()
-                }
             }
         });
     }
