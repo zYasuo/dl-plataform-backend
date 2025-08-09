@@ -1,14 +1,14 @@
-import { AuthDTO } from "./dto/auth.dto";
 import * as argon2 from "argon2";
 import { JwtService } from "@nestjs/jwt";
-import { CreateUserDTO } from "../user/dto/user-create.dto";
-import type { IEmailService } from "../email/interface/email-service.interface";
 import { IAuthResponse } from "./interface/auth-response.interface";
+import { CreateUserDTO } from "../user/dto/user-create.dto";
 import type { IAuthService } from "./interface/auth-service.interface";
 import type { IUserService } from "../user/interfaces/user-service.interface";
+import type { IEmailService } from "../email/interface/email-service.interface";
 import { PrismaClient, token, user } from "@prisma/client";
+import { AuthDTO, AuthHeaderDTO, VerifyEmailDTO } from "./dto/auth.dto";
 import { ICreateJWT, ICreateTokenDB, ITokenValidationResult } from "./interface/jwt-payload.interface";
-import { BadRequestException, Inject, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException } from "@nestjs/common";
 
 @Injectable()
 export class AuthService implements IAuthService {
@@ -21,9 +21,7 @@ export class AuthService implements IAuthService {
 
     async register(data: CreateUserDTO): Promise<{ message: string }> {
         await this.userService.create(data);
-
         const verificationToken = await this.generateVerificationToken(data.email);
-
         await this.emailService.sendWelcomeEmail(data.email, data.name, verificationToken);
 
         return {
@@ -31,9 +29,101 @@ export class AuthService implements IAuthService {
         };
     }
 
+    async verifyEmail(data: VerifyEmailDTO): Promise<boolean> {
+        return await this.prismaDB.$transaction(async (tx) => {
+            const verification = await tx.verification.findUnique({
+                where: { id: data.token }
+            });
+
+            if (!verification) {
+                throw new BadRequestException("Invalid verification token");
+            }
+
+            if (verification.expires_at < new Date()) {
+                throw new BadRequestException("Verification token has expired");
+            }
+
+            if (verification.value !== "email_verification") {
+                throw new BadRequestException("Invalid verification token");
+            }
+
+            const updatedUser = await tx.user.update({
+                where: { email: verification.identifier },
+                data: {
+                    email_verified: true,
+                    updated_at: new Date()
+                }
+            });
+
+            if (!updatedUser) {
+                throw new InternalServerErrorException("Failed to verify email");
+            }
+
+            await tx.verification.delete({
+                where: { id: data.token }
+            });
+
+            return true;
+        });
+    }
+
+    async resendVerificationEmail(email: string): Promise<boolean> {
+        const user = await this.userService.searchUserByEmail(email);
+
+        if (!user) {
+            throw new NotFoundException("User not found");
+        }
+
+        if (user.email_verified) {
+            throw new BadRequestException("Email already verified");
+        }
+
+        await this.prismaDB.verification.deleteMany({
+            where: {
+                identifier: email,
+                value: "email_verification"
+            }
+        });
+
+        const verificationToken = await this.generateVerificationToken(email);
+        await this.emailService.sendWelcomeEmail(email, user.name, verificationToken);
+
+        return true;
+    }
+
+    private async generateVerificationToken(email: string): Promise<string> {
+        await this.prismaDB.verification.deleteMany({
+            where: {
+                identifier: email,
+                value: "email_verification"
+            }
+        });
+
+        const token = crypto.randomUUID();
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 24);
+
+        const verification = await this.prismaDB.verification.create({
+            data: {
+                id: token,
+                identifier: email,
+                value: "email_verification",
+                expires_at: expiresAt,
+                created_at: new Date(),
+                updated_at: new Date()
+            }
+        });
+
+        if (!verification) {
+            throw new InternalServerErrorException("Failed to create verification token");
+        }
+
+        return token;
+    }
+
     async login(data: AuthDTO): Promise<IAuthResponse> {
         const dataValidate = await this.validateLogin(data);
-
+        
         const payloadToken: ICreateJWT = {
             name: dataValidate.name,
             email: dataValidate.email,
@@ -67,49 +157,6 @@ export class AuthService implements IAuthService {
         };
     }
 
-    async verifyEmail(token: string): Promise<{ message: string }> {
-        const verification = await this.prismaDB.verification.findUnique({
-            where: { id: token }
-        });
-
-        if (!verification || verification.expires_at < new Date()) {
-            throw new BadRequestException("Invalid or expired verification token");
-        }
-
-        await this.userService.updateEmailVerification(verification.identifier, true);
-
-        await this.prismaDB.verification.delete({
-            where: { id: token }
-        });
-
-        return { message: "Email verified successfully" };
-    }
-
-    async resendVerificationEmail(email: string): Promise<{ message: string }> {
-        const user = await this.userService.searchUserByEmail(email);
-
-        if (!user) {
-            throw new NotFoundException("User not found");
-        }
-
-        if (user.email_verified) {
-            throw new BadRequestException("Email already verified");
-        }
-
-        await this.prismaDB.verification.deleteMany({
-            where: {
-                identifier: email,
-                value: "email_verification"
-            }
-        });
-
-        const verificationToken = await this.generateVerificationToken(email);
-
-        await this.emailService.sendWelcomeEmail(email, user.name, verificationToken);
-
-        return { message: "Verification email sent" };
-    }
-
     private async validateLogin(data: AuthDTO): Promise<user> {
         const user = await this.userService.searchUserByEmail(data.email);
 
@@ -130,23 +177,6 @@ export class AuthService implements IAuthService {
         return user;
     }
 
-    private async generateVerificationToken(email: string): Promise<string> {
-        const token = crypto.randomUUID();
-        const expiresAt = new Date();
-        expiresAt.setHours(expiresAt.getHours() + 24);
-
-        await this.prismaDB.verification.create({
-            data: {
-                id: token,
-                identifier: email,
-                value: "email_verification",
-                expires_at: expiresAt
-            }
-        });
-
-        return token;
-    }
-
     private async createTokenDB(payload: ICreateTokenDB): Promise<token> {
         return this.prismaDB.token.create({
             data: {
@@ -158,15 +188,15 @@ export class AuthService implements IAuthService {
         });
     }
 
-    async validateToken(token: string): Promise<ITokenValidationResult> {
+    async validateToken(data: AuthHeaderDTO): Promise<ITokenValidationResult> {
         try {
-            const decoded = this.jwtService.verify<ICreateJWT>(token, {
+            const decoded = this.jwtService.verify<ICreateJWT>(data.authorization, {
                 secret: process.env.JWT_SECRET_KEY
             });
 
             const tokenInDB = await this.prismaDB.token.findFirst({
                 where: {
-                    refresh_token: token,
+                    refresh_token: data.authorization,
                     expires_at: {
                         gt: new Date()
                     }

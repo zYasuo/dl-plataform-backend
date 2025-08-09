@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -24,7 +24,7 @@ model product {
   description     String
   price_in_cents  Int
   created_at      DateTime          @default(now()) @db.Timestamp(6)
-  category        category          @relation(fields: [category_id], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "product_category_id_category_id_fk")
+  category        category          @relation(fields: [category_id], references: [id], onUpdate: NoAction, map: "product_category_id_category_id_fk")
   product_variant product_variant[]
 }
 
@@ -41,25 +41,25 @@ model product_variant {
 }
 
 model user {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name           String
-  password       String
   email          String   @unique(map: "user_email_unique")
   email_verified Boolean? @default(false)
   image          String?
   created_at     DateTime @default(now()) @db.Timestamp(6)
   updated_at     DateTime @default(now()) @db.Timestamp(6)
-  tokens         token[] 
+  password       String
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tokens         token[]
 }
 
 model token {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id       String   @db.Uuid
-  created_at    DateTime @default(now()) @db.Timestamp(6)
-  updated_at    DateTime @default(now()) @db.Timestamp(6)
-  refresh_token String   @db.Text
-  user          user     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String    @db.Uuid
+  created_at    DateTime  @default(now()) @db.Timestamp(6)
+  updated_at    DateTime  @default(now()) @db.Timestamp(6)
+  refresh_token String
   expires_at    DateTime? @db.Timestamp(6)
+  user          user      @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
 }

@@ -23,7 +23,6 @@ export class EmailService implements IEmailService {
         <a href="${process.env.FRONTEND_URL}/verify-email?token=${token}">Verificar Email</a>
       `
         });
-        console.log(response);
         return {
             name: name,
             message: "Email de boas-vindas enviado com sucesso!"

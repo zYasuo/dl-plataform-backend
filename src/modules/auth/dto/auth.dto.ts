@@ -7,8 +7,14 @@ export class AuthDTO {
     password: string;
 }
 
-export class AuthHeader{
+export class AuthHeaderDTO{
     @IsNotEmpty({ message: "Field is must contain value" })
     @IsString({ message: "Name is must be string" })
     authorization: string;
+}
+
+export class VerifyEmailDTO {
+    @IsNotEmpty({ message: "Field is must contain value" })
+    @IsString({ message: "Name is must be string" })
+    token: string;
 }
