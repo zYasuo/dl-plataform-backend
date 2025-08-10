@@ -121,7 +121,7 @@ export class AuthService implements IAuthService {
         return token;
     }
 
-    async login(data: AuthDTO): Promise<IAuthResponse> {
+    async signin(data: AuthDTO): Promise<IAuthResponse> {
         const dataValidate = await this.validateLogin(data);
 
         const payloadToken: ICreateJWT = {

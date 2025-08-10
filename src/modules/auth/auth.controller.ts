@@ -20,7 +20,7 @@ export class AuthController {
     @Post("/sign-in")
     @UsePipes(new ValidationPipe())
     async login(@Body() data: AuthDTO) {
-        return this.authService.login(data);
+        return this.authService.signin(data);
     }
 
     @Get("/validate")

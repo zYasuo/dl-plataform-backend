@@ -5,7 +5,7 @@ import { AuthDTO, VerifyEmailDTO, AuthHeaderDTO, RefreshTokenDTO } from "../dto/
 
 export interface IAuthService {
     signup(data: CreateUserDTO): Promise<{ message: string }>;
-    login(data: AuthDTO): Promise<IAuthResponse>;
+    signin(data: AuthDTO): Promise<IAuthResponse>;
     verifyEmail(data: VerifyEmailDTO): Promise<boolean>;
     resendVerificationEmail(email: string): Promise<boolean>;
     validateToken(data: AuthHeaderDTO): Promise<ITokenValidationResult>;
