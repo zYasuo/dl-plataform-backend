@@ -13,8 +13,8 @@ export class AuthController {
 
     @Post("/sign-up")
     @UsePipes(new ValidationPipe())
-    async register(@Body() data: CreateUserDTO) {
-        return this.authService.register(data);
+    async signup(@Body() data: CreateUserDTO) {
+        return this.authService.signup(data);
     }
 
     @Post("/sign-in")

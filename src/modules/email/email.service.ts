@@ -11,21 +11,25 @@ export class EmailService implements IEmailService {
         this.resend = new Resend(process.env.RESEND_API_KEY);
     }
 
+    private getWelcomeEmailTemplate(name: string, token: string): string {
+        return `
+            <h1>Welcome, ${name}!</h1>
+            <p>Welcome to DL Platform!</p>
+            <p>To verify your email, click the link below:</p>
+            <a href="${process.env.FRONTEND_URL}/verify-email?token=${token}">Verify Email</a>
+        `;
+    }
+
     async sendWelcomeEmail(to: string, name: string, token: string): Promise<IResponseResend> {
-        const response = await this.resend.emails.send({
+        await this.resend.emails.send({
             from: "onboarding@resend.dev",
             to,
-            subject: "Bem-vindo!",
-            html: `
-        <h1>Olá, ${name}!</h1>
-        <p>Bem-vindo à nossa plataforma!</p>
-        <p>Para verificar seu email, clique no link abaixo:</p>
-        <a href="${process.env.FRONTEND_URL}/verify-email?token=${token}">Verificar Email</a>
-      `
+            subject: "Welcome to DL Platform!",
+            html: this.getWelcomeEmailTemplate(name, token)
         });
         return {
             name: name,
-            message: "Email de boas-vindas enviado com sucesso!"
+            message: "Welcome email sent successfully!"
         };
     }
 }

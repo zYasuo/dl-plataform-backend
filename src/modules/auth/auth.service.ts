@@ -19,7 +19,7 @@ export class AuthService implements IAuthService {
         private readonly jwtService: JwtService
     ) {}
 
-    async register(data: CreateUserDTO): Promise<{ message: string }> {
+    async signup(data: CreateUserDTO): Promise<{ message: string }> {
         await this.userService.create(data);
         const verificationToken = await this.generateVerificationToken(data.email);
         await this.emailService.sendWelcomeEmail(data.email, data.name, verificationToken);

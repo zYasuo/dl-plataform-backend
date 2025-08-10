@@ -3,7 +3,7 @@ import { IUserService } from "./interfaces/user-service.interface";
 import { CreateUserDTO } from "./dto/user-create.dto";
 import { PrismaClient, user } from "@prisma/client";
 import { IUserResonse, IUser } from "./interfaces/user-response.interface";
-import { Inject, Injectable, BadRequestException, NotFoundException, InternalServerErrorException } from "@nestjs/common";
+import { Inject, Injectable, BadRequestException, InternalServerErrorException } from "@nestjs/common";
 @Injectable()
 export class UserService implements IUserService {
     constructor(@Inject("PRISMA_CLIENT") private prismaDB: PrismaClient) {}

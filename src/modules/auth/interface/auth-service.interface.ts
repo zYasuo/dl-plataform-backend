@@ -4,7 +4,7 @@ import { ITokenValidationResult } from "./jwt-payload.interface";
 import { AuthDTO, VerifyEmailDTO, AuthHeaderDTO, RefreshTokenDTO } from "../dto/auth.dto";
 
 export interface IAuthService {
-    register(data: CreateUserDTO): Promise<{ message: string }>;
+    signup(data: CreateUserDTO): Promise<{ message: string }>;
     login(data: AuthDTO): Promise<IAuthResponse>;
     verifyEmail(data: VerifyEmailDTO): Promise<boolean>;
     resendVerificationEmail(email: string): Promise<boolean>;
